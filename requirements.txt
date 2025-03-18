@@ -1,0 +1,10 @@
+torch
+torchvision
+torchaudio
+transformers
+flash-attn
+soundfile
+librosa
+jsonlines
+gradio
+pyannote.audio
