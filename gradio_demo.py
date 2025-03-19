@@ -14,7 +14,7 @@ from spkr import SpeakerEmbedding
 
 
 spkr_model = SpeakerEmbedding(device="cuda")
-model, tokenizer, tokenizer_voila, model_type = load_model("maitrix-org/Voila-chat")
+model, tokenizer, tokenizer_voila, model_type = load_model("maitrix-org/Voila-chat", "maitrix-org/Voila-Tokenizer")
 default_ref_file = "examples/character_ref_emb_demo.pkl"
 default_ref_name = "Homer Simpson"
 
@@ -52,14 +52,19 @@ def call_bot(history, ref_embs, request: gr.Request):
     print(formated_history)
     ref_embs = torch.tensor(ref_embs, dtype=torch.float32, device="cuda")
     ref_embs_mask = torch.tensor([1], device="cuda")
-    wav, sr = eval_model(model, tokenizer, tokenizer_voila, model_type, "chat_aiao", formated_history, ref_embs, ref_embs_mask, max_new_tokens=512)
+    out = eval_model(model, tokenizer, tokenizer_voila, model_type, "chat_aiao", formated_history, ref_embs, ref_embs_mask, max_new_tokens=512)
+    if 'audio' in out:
+        wav, sr = out['audio']
 
-    user_dir = Path(f"{save_path}/{str(request.session_hash)}")
-    user_dir.mkdir(exist_ok=True)
-    save_name = f"{user_dir}/{len(history)}.wav"
-    sf.write(save_name, wav, sr)
+        user_dir = Path(f"{save_path}/{str(request.session_hash)}")
+        user_dir.mkdir(exist_ok=True)
+        save_name = f"{user_dir}/{len(history)}.wav"
+        sf.write(save_name, wav, sr)
 
-    history.append({"role": "assistant", "content": {"path": save_name}})
+        history.append({"role": "assistant", "content": {"path": save_name}})
+    else:
+        history.append({"role": "assistant", "content": {"text": out['text']}})
+
     return history
 
 with gr.Blocks(fill_height=True) as demo:
