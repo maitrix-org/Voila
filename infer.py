@@ -134,7 +134,7 @@ def eval_model(model, tokenizer, tokenizer_voila, model_type, task_type, history
             if item[0] >= AUDIO_MIN_TOKEN_ID and item[0] <= AUDIO_MAX_TOKEN_ID:
                 for n, at in enumerate(item):
                     audio_outputs[n].append((at - AUDIO_MIN_TOKEN_ID)%codebook_size)
-            else:
+            elif item[0] != tokenizer.eos_token_id:
                 text_outputs.append(item[0])
 
         out ={

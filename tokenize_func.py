@@ -116,7 +116,7 @@ def _token_input_format(item, tokenizer, tokenizer_voila, dataset_cfg):
     for i, turn in enumerate(item["conversations"]):
         if turn['from'] == 'assistant':
             # task with audio token as input, prepare audio token
-            if task_type in ["chat_aiao"]:
+            if task_type in ["chat_aiao", "chat_tts"]:
                 if "audio" not in turn:
                     content = DEFAULT_ASSISTANT_TOKEN
                     content_ids = tokenizer.encode(content, add_special_tokens=False)
@@ -148,7 +148,7 @@ def _token_input_format(item, tokenizer, tokenizer_voila, dataset_cfg):
                                                 max_length=tokenizer.model_max_length)
                         input_ids_list[n] += content_ids
 
-            elif task_type in ["chat_tito"]:
+            elif task_type in ["chat_tito", "chat_asr"]:
                 if "text" not in turn:
                     content = DEFAULT_ASSISTANT_TOKEN
                     content_ids = tokenizer.encode(content, add_special_tokens=False)
@@ -165,7 +165,7 @@ def _token_input_format(item, tokenizer, tokenizer_voila, dataset_cfg):
                 raise ValueError (f"[Error] Invalid data type of {task_type}.")
         else:
             # task with audio token as input, prepare audio token
-            if task_type in ["chat_aiao"]:
+            if task_type in ["chat_aiao", "chat_asr"]:
                 # Load audio
                 assert "audio" in turn
                 if 'array' in turn['audio']:
@@ -191,7 +191,7 @@ def _token_input_format(item, tokenizer, tokenizer_voila, dataset_cfg):
                     content_ids = tokenizer.encode(content, add_special_tokens=False, truncation=True,
                                             max_length=tokenizer.model_max_length)
                     input_ids_list[n] += copy.deepcopy(content_ids)
-            elif task_type in ["chat_tito"]:
+            elif task_type in ["chat_tito", "chat_tts"]:
                 text = turn['text'].strip()
                 content = DEFAULT_HUMAN_TOKEN + text
                 content_ids = tokenizer.encode(content, add_special_tokens=False, truncation=True,
