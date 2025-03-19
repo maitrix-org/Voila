@@ -9,6 +9,8 @@ from pathlib import Path
 import torch
 import torchaudio
 
+from huggingface_hub import hf_hub_download
+
 from infer import load_model, eval_model
 from spkr import SpeakerEmbedding
 
@@ -17,6 +19,7 @@ spkr_model = SpeakerEmbedding(device="cuda")
 model, tokenizer, tokenizer_voila, model_type = load_model("maitrix-org/Voila-chat", "maitrix-org/Voila-Tokenizer")
 default_ref_file = "examples/character_ref_emb_demo.pkl"
 default_ref_name = "Homer Simpson"
+million_voice_ref_file = hf_hub_download(repo_id="maitrix-org/Voila-million-voice", filename="character_ref_emb_chunk0.pkl", repo_type="dataset")
 
 instruction = "You are a smart AI agent created by Maitrix.org."
 save_path = "output"
@@ -26,6 +29,7 @@ intro = """**Voila**
 For more demos, please goto [https://voila.maitrix.org](https://voila.maitrix.org)."""
 
 default_ref_emb_mask_list = pickle.load(open(default_ref_file, "rb"))
+million_voice_ref_emb_mask_list = pickle.load(open(million_voice_ref_file, "rb"))
 
 def get_ref_embs(ref_audio):
     wav, sr = torchaudio.load(ref_audio)
@@ -94,15 +98,30 @@ def run_asr(audio):
     else:
         raise Exception("No text output")
 
+
+def markdown_ref_name(ref_name):
+    return f"### Current voice id: {ref_name}"
+
+def random_million_voice():
+    voice_id = random.choice(list(million_voice_ref_emb_mask_list.keys()))
+    return markdown_ref_name(voice_id), million_voice_ref_emb_mask_list[voice_id]
+
 def get_ref_modules(cur_ref_embs):
     with gr.Row() as ref_row:
+        with gr.Row():
+            current_ref_name = gr.Markdown(markdown_ref_name(default_ref_name))
         with gr.Row() as ref_name_row:
-            ref_name_dropdown = gr.Dropdown(
-                choices=list(default_ref_emb_mask_list.keys()),
-                value=default_ref_name,
-                label="Reference voice",
-                min_width=160,
-            )
+            with gr.Column(scale=2, min_width=160):
+                ref_name_dropdown = gr.Dropdown(
+                    choices=list(default_ref_emb_mask_list.keys()),
+                    value=default_ref_name,
+                    label="Reference voice",
+                    min_width=160,
+                )
+            with gr.Column(scale=1, min_width=80):
+                random_ref_button = gr.Button(
+                    "Random from Million Voice", size="md",
+                )
         with gr.Row(visible=False) as ref_audio_row:
             with gr.Column(scale=2, min_width=80):
                 ref_audio = gr.Audio(
@@ -118,9 +137,14 @@ def get_ref_modules(cur_ref_embs):
                     min_width=80,
                 )
     ref_name_dropdown.change(
-        lambda x: default_ref_emb_mask_list[x],
+        lambda x: (markdown_ref_name(x), default_ref_emb_mask_list[x]),
         ref_name_dropdown,
-        cur_ref_embs
+        [current_ref_name, cur_ref_embs]
+    )
+    random_ref_button.click(
+        random_million_voice,
+        None,
+        [current_ref_name, cur_ref_embs],
     )
     ref_audio.input(lambda: gr.Button(interactive=True), None, change_ref_button)
     # If custom ref voice checkbox is checked, show the Audio component to record or upload a reference voice
@@ -130,11 +154,11 @@ def get_ref_modules(cur_ref_embs):
     def custom_ref_voice_change(x, cur_ref_embs, cur_ref_embs_mask):
         if not x:
             cur_ref_embs = default_ref_emb_mask_list[default_ref_name]
-        return [gr.Row(visible=not x), gr.Audio(value=None), gr.Row(visible=x), cur_ref_embs]
+        return [gr.Row(visible=not x), gr.Audio(value=None), gr.Row(visible=x), markdown_ref_name("Custom voice"), cur_ref_embs]
     custom_ref_voice.change(
         custom_ref_voice_change,
         [custom_ref_voice, cur_ref_embs],
-        [ref_name_row, ref_audio, ref_audio_row, cur_ref_embs]
+        [ref_name_row, ref_audio, ref_audio_row, current_ref_name, cur_ref_embs]
     )
     # When change ref button is clicked, get the reference voice and update the reference voice state
     change_ref_button.click(
