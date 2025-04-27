@@ -22,7 +22,7 @@ Voila is a groundbreaking family of large audio-language foundation models that 
 
 # 🔥 Latest News!!
 
-* Mar 25, 2025: 👋 We've released the inference code and model weights of Voila.
+* April 28, 2025: 👋 We've released the inference code and model weights of Voila.
 
 # ⚙️ Foundation Models
 
