@@ -1,10 +1,10 @@
 <p align="center">
-    <img src="https://voila.maitrix.org/static/images/logo.png" width="400"/><br/>
+    <img src="https://maitrix-org.github.io/Voila-blog/static/images/logo.png" width="400"/><br/>
     <b>Voila: <span style="color:#ca00f9">Voi</span>ce-<span style="color:#ca00f9">La</span>nguage Foundation Models</b><br/><br/>
-    💜 <a href="https://voila.maitrix.org/"><b>Voila</b></a> &nbsp&nbsp ｜ &nbsp&nbsp 🖥️ <a href="https://github.com/maitrix-org/Voila">GitHub</a> &nbsp&nbsp  | &nbsp&nbsp🤗 <a href="https://huggingface.co/collections/maitrix-org/voila-67e0d96962c19f221fc73fa5">Hugging Face</a>&nbsp&nbsp | &nbsp&nbsp 📑 <a href="">Paper (Coming soon)</a> &nbsp&nbsp | &nbsp&nbsp 🌐 <a href="https://voila-demo.maitrix.org">Demo</a>
+    💜 <a href="https://maitrix-org.github.io/Voila-blog"><b>Voila</b></a> &nbsp&nbsp ｜ &nbsp&nbsp 🖥️ <a href="https://github.com/maitrix-org/Voila">GitHub</a> &nbsp&nbsp  | &nbsp&nbsp🤗 <a href="https://huggingface.co/collections/maitrix-org/voila-67e0d96962c19f221fc73fa5">Hugging Face</a>&nbsp&nbsp | &nbsp&nbsp 📑 <a href="">Paper (Coming soon)</a> &nbsp&nbsp | &nbsp&nbsp 🌐 <a href="https://huggingface.co/spaces/maitrix-org/Voila-demo">Demo</a>
 </p>
 
-Voila is a groundbreaking family of large audio-language foundation models that revolutionizes human-AI interactions. Breaking away from the constraints of traditional voice AI systems—high latency, loss of vocal nuances, and mechanical responses, Voila employs an innovative end-to-end model design and a novel hierarchical Transformer architecture. This approach enables real-time, autonomous, and rich voice interactions, with latency as low as 195 ms, surpassing average human response times. Combining advanced voice and language modeling, Voila offers customizable, persona-driven engagements and excels in a range of audio tasks from ASR and TTS to speech translation across six languages. With the online [web demo](https://voila-demo.maitrix.org/), Voila invites you to explore a transformative, natural dialogue experience between human and AI.
+Voila is a groundbreaking family of large audio-language foundation models that revolutionizes human-AI interactions. Breaking away from the constraints of traditional voice AI systems—high latency, loss of vocal nuances, and mechanical responses, Voila employs an innovative end-to-end model design and a novel hierarchical Transformer architecture. This approach enables real-time, autonomous, and rich voice interactions, with latency as low as 195 ms, surpassing average human response times. Combining advanced voice and language modeling, Voila offers customizable, persona-driven engagements and excels in a range of audio tasks from ASR and TTS to speech translation across six languages. With the online [web demo](https://huggingface.co/spaces/maitrix-org/Voila-demo), Voila invites you to explore a transformative, natural dialogue experience between human and AI.
 
 # ✨ Highlights
 - ⭐ High-fidelity, low-latency, real-time streaming audio processing
@@ -15,7 +15,7 @@ Voila is a groundbreaking family of large audio-language foundation models that 
 # 🎥 Video Demo
 <div align="center">
     <video width="60%" controls>
-        <source src="https://voila.maitrix.org/static/videos/voila-demo.mp4" type="video/mp4">
+        <source src="https://maitrix-org.github.io/Voila-blog/static/videos/voila-demo.mp4" type="video/mp4">
         Your browser does not support the video tag.
     </video>
 </div>
