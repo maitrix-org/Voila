@@ -13,12 +13,7 @@ Voila is a groundbreaking family of large audio-language foundation models that 
 - ⭐ Unified model for various audio tasks
 
 # 🎥 Video Demo
-<div align="center">
-    <video width="60%" controls>
-        <source src="https://maitrix-org.github.io/Voila-blog/static/videos/voila-demo.mp4" type="video/mp4">
-        Your browser does not support the video tag.
-    </video>
-</div>
+[![Voila Demo](https://img.youtube.com/vi/J27M9-g5KL0/0.jpg)](https://www.youtube.com/watch?v=J27M9-g5KL0)
 
 # 🔥 Latest News!!
 
