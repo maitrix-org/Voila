@@ -47,7 +47,8 @@ def add_message(history, message):
     history.append({"role": "user", "content": {"path": message}})
     return history, gr.Audio(value=None), gr.Button(interactive=False)
 
-def call_bot(history, ref_embs, request: gr.Request):
+def call_bot(history, ref_embs, request: gr.Request, progress=gr.Progress()):
+    progress(0, desc="Processing your message...")
     formated_history = {
         "instruction": instruction,
         "conversations": [{'from': item["role"], 'audio': {"file": item["content"][0]}} for item in history],
@@ -56,47 +57,68 @@ def call_bot(history, ref_embs, request: gr.Request):
     print(formated_history)
     ref_embs = torch.tensor(ref_embs, dtype=torch.float32, device="cuda")
     ref_embs_mask = torch.tensor([1], device="cuda")
+    progress(0.3, desc="Generating response...")
     out = eval_model(model, tokenizer, tokenizer_voila, model_type, "chat_aiao", formated_history, ref_embs, ref_embs_mask, max_new_tokens=512)
     if 'audio' in out:
+        progress(0.7, desc="Processing audio...")
         wav, sr = out['audio']
 
+        # Ensure output directory exists
+        Path(save_path).mkdir(exist_ok=True, parents=True)
         user_dir = Path(f"{save_path}/{str(request.session_hash)}")
-        user_dir.mkdir(exist_ok=True)
+        user_dir.mkdir(exist_ok=True, parents=True)
         save_name = f"{user_dir}/{len(history)}.wav"
         sf.write(save_name, wav, sr)
 
         history.append({"role": "assistant", "content": {"path": save_name}})
     else:
         history.append({"role": "assistant", "content": {"text": out['text']}})
+    progress(1.0, desc="Complete!")
 
     return history
 
-def run_tts(text, ref_embs):
-    formated_history = {
-        "instruction": "",
-        "conversations": [{'from': "user", 'text': text}],
-    }
-    formated_history["conversations"].append({"from": "assistant"})
-    ref_embs = torch.tensor(ref_embs, dtype=torch.float32, device="cuda")
-    ref_embs_mask = torch.tensor([1], device="cuda")
-    out = eval_model(model, tokenizer, tokenizer_voila, model_type, "chat_tts", formated_history, ref_embs, ref_embs_mask, max_new_tokens=512)
-    if 'audio' in out:
-        wav, sr = out['audio']
-        return (sr, wav)
-    else:
-        raise Exception("No audio output")
+def run_tts(text, ref_embs, progress=gr.Progress()):
+    if not text.strip():
+        raise gr.Error("Please enter some text to convert to speech")
+    try:
+        progress(0, desc="Processing text...")
+        formated_history = {
+            "instruction": "",
+            "conversations": [{'from': "user", 'text': text}],
+        }
+        formated_history["conversations"].append({"from": "assistant"})
+        ref_embs = torch.tensor(ref_embs, dtype=torch.float32, device="cuda")
+        ref_embs_mask = torch.tensor([1], device="cuda")
+        progress(0.5, desc="Generating speech...")
+        out = eval_model(model, tokenizer, tokenizer_voila, model_type, "chat_tts", formated_history, ref_embs, ref_embs_mask, max_new_tokens=512)
+        if 'audio' in out:
+            progress(1.0, desc="Complete!")
+            wav, sr = out['audio']
+            return (sr, wav)
+        else:
+            raise Exception("No audio output")
+    except Exception as e:
+        raise gr.Error(f"Error generating speech: {str(e)}")
 
-def run_asr(audio):
-    formated_history = {
-        "instruction": "",
-        "conversations": [{'from': "user", 'audio': {"file": audio}}],
-    }
-    formated_history["conversations"].append({"from": "assistant"})
-    out = eval_model(model, tokenizer, tokenizer_voila, model_type, "chat_asr", formated_history, None, None, max_new_tokens=512)
-    if 'text' in out:
-        return out['text']
-    else:
-        raise Exception("No text output")
+def run_asr(audio, progress=gr.Progress()):
+    if not audio:
+        raise gr.Error("Please provide an audio file or record your voice")
+    try:
+        progress(0, desc="Processing audio...")
+        formated_history = {
+            "instruction": "",
+            "conversations": [{'from': "user", 'audio': {"file": audio}}],
+        }
+        formated_history["conversations"].append({"from": "assistant"})
+        progress(0.5, desc="Converting to text...")
+        out = eval_model(model, tokenizer, tokenizer_voila, model_type, "chat_asr", formated_history, None, None, max_new_tokens=512)
+        if 'text' in out:
+            progress(1.0, desc="Complete!")
+            return out['text']
+        else:
+            raise Exception("No text output")
+    except Exception as e:
+        raise gr.Error(f"Error converting speech to text: {str(e)}")
 
 
 def markdown_ref_name(ref_name):
@@ -108,34 +130,45 @@ def random_million_voice():
 
 def get_ref_modules(cur_ref_embs):
     with gr.Row() as ref_row:
-        with gr.Row():
-            current_ref_name = gr.Markdown(markdown_ref_name(default_ref_name))
-        with gr.Row() as ref_name_row:
-            with gr.Column(scale=2, min_width=160):
-                ref_name_dropdown = gr.Dropdown(
-                    choices=list(default_ref_emb_mask_list.keys()),
-                    value=default_ref_name,
-                    label="Reference voice",
-                    min_width=160,
+        with gr.Group(elem_id="voice_selector_box"):
+            with gr.Row():
+                current_ref_name = gr.Markdown(
+                    markdown_ref_name(default_ref_name),
+                    elem_id="current_voice"
                 )
-            with gr.Column(scale=1, min_width=80):
-                random_ref_button = gr.Button(
-                    "Random from Million Voice", size="md",
-                )
-        with gr.Row(visible=False) as ref_audio_row:
-            with gr.Column(scale=2, min_width=80):
-                ref_audio = gr.Audio(
-                    sources=["microphone", "upload"],
-                    type="filepath",
-                    show_label=False,
-                    min_width=80,
-                )
-            with gr.Column(scale=1, min_width=80):
-                change_ref_button = gr.Button(
-                    "Change voice",
-                    interactive=False,
-                    min_width=80,
-                )
+            with gr.Row() as ref_name_row:
+                with gr.Column(scale=2):
+                    ref_name_dropdown = gr.Dropdown(
+                        choices=list(default_ref_emb_mask_list.keys()),
+                        value=default_ref_name,
+                        label="Select Voice",
+                        min_width=160,
+                        elem_id="voice_selector"
+                    )
+                with gr.Column(scale=1):
+                    random_ref_button = gr.Button(
+                        "🎲 Random Voice",
+                        size="md",
+                        variant="secondary",
+                        elem_id="random_voice"
+                    )
+            with gr.Row(visible=False) as ref_audio_row:
+                with gr.Column(scale=2):
+                    ref_audio = gr.Audio(
+                        sources=["microphone", "upload"],
+                        type="filepath",
+                        show_label=False,
+                        min_width=80,
+                        elem_id="ref_audio_input"
+                    )
+                with gr.Column(scale=1):
+                    change_ref_button = gr.Button(
+                        "Change Voice",
+                        interactive=False,
+                        min_width=80,
+                        variant="primary",
+                        elem_id="change_voice_button"
+                    )
     ref_name_dropdown.change(
         lambda x: (markdown_ref_name(x), default_ref_emb_mask_list[x]),
         ref_name_dropdown,
@@ -147,10 +180,7 @@ def get_ref_modules(cur_ref_embs):
         [current_ref_name, cur_ref_embs],
     )
     ref_audio.input(lambda: gr.Button(interactive=True), None, change_ref_button)
-    # If custom ref voice checkbox is checked, show the Audio component to record or upload a reference voice
     custom_ref_voice = gr.Checkbox(label="Use custom voice", value=False)
-    # Checked: enable audio and button
-    # Unchecked: disable audio and button
     def custom_ref_voice_change(x, cur_ref_embs, cur_ref_embs_mask):
         if not x:
             cur_ref_embs = default_ref_emb_mask_list[default_ref_name]
@@ -160,7 +190,6 @@ def get_ref_modules(cur_ref_embs):
         [custom_ref_voice, cur_ref_embs],
         [ref_name_row, ref_audio, ref_audio_row, current_ref_name, cur_ref_embs]
     )
-    # When change ref button is clicked, get the reference voice and update the reference voice state
     change_ref_button.click(
         lambda: gr.Button(interactive=False), None, [change_ref_button]
     ).then(
@@ -173,13 +202,24 @@ def get_chat_tab():
     with gr.Row() as chat_tab:
         with gr.Column(scale=1):
             ref_row = get_ref_modules(cur_ref_embs)
-            # Voice chat input
-            chat_input = gr.Audio(
-                sources=["microphone", "upload"],
-                type="filepath",
-                show_label=False,
-            )
-            submit = gr.Button("Submit", interactive=False)
+            with gr.Group(elem_id="voice_input_box"):
+                with gr.Row():
+                    with gr.Column(scale=4):
+                        chat_input = gr.Audio(
+                            sources=["microphone", "upload"],
+                            type="filepath",
+                            show_label=False,
+                            elem_id="voice_input",
+                            interactive=True,
+                        )
+                    with gr.Column(scale=1):
+                        submit = gr.Button(
+                            "Send",
+                            variant="primary",
+                            size="lg",
+                            interactive=False,
+                            elem_id="send_button"
+                        )
             gr.Markdown(intro)
         with gr.Column(scale=9):
             chatbot = gr.Chatbot(
@@ -187,10 +227,12 @@ def get_chat_tab():
                 type="messages",
                 bubble_full_width=False,
                 scale=1,
-                show_copy_button=False,
+                show_copy_button=True,
+                height=600,
+                container=True,
                 avatar_images=(
-                    None,  # os.path.join("files", "avatar.png"),
-                    None, # os.path.join("files", "avatar.png"),
+                    "https://raw.githubusercontent.com/gradio-app/gradio/main/test/test_files/lion.jpg",
+                    "https://raw.githubusercontent.com/gradio-app/gradio/main/test/test_files/lion.jpg",
                 ),
             )
 
@@ -209,10 +251,26 @@ def get_tts_tab():
             ref_row = get_ref_modules(cur_ref_embs)
             gr.Markdown(intro)
         with gr.Column(scale=9):
-            tts_output = gr.Audio(label="TTS output", interactive=False)
-            with gr.Row():
-                text_input = gr.Textbox(label="Text", placeholder="Text to TTS")
-                submit = gr.Button("Submit")
+            with gr.Group():
+                tts_output = gr.Audio(
+                    label="Generated Speech",
+                    interactive=False,
+                    elem_id="tts_output"
+                )
+                with gr.Row():
+                    text_input = gr.Textbox(
+                        label="Text to Speech",
+                        placeholder="Enter text to convert to speech...",
+                        info="Enter the text you want to convert to speech",
+                        elem_id="tts_input",
+                        lines=5
+                    )
+                    submit = gr.Button(
+                        "Generate Speech",
+                        variant="primary",
+                        size="lg",
+                        elem_id="tts_submit"
+                    )
         submit.click(
             run_tts, [text_input, cur_ref_embs], tts_output
         )
@@ -221,27 +279,88 @@ def get_tts_tab():
 def get_asr_tab():
     with gr.Row() as asr_tab:
         with gr.Column():
-            asr_input = gr.Audio(
-                label="ASR input",
-                sources=["microphone", "upload"],
-                type="filepath",
-            )
-            submit = gr.Button("Submit")
+            with gr.Group():
+                asr_input = gr.Audio(
+                    label="ASR input",
+                    sources=["microphone", "upload"],
+                    type="filepath",
+                    elem_id="asr_input"
+                )
+                submit = gr.Button(
+                    "Convert to Text",
+                    variant="primary",
+                    size="lg",
+                    elem_id="asr_submit"
+                )
             gr.Markdown(intro)
         with gr.Column():
-            asr_output = gr.Textbox(label="ASR output", interactive=False)
+            asr_output = gr.Textbox(
+                label="Transcribed Text",
+                interactive=False,
+                elem_id="asr_output",
+                lines=5
+            )
     submit.click(
         run_asr, [asr_input], asr_output
     )
     return asr_tab
 
-with gr.Blocks(fill_height=True) as demo:
-    with gr.Tab("Chat"):
-        chat_tab = get_chat_tab()
-    with gr.Tab("TTS"):
-        tts_tab = get_tts_tab()
-    with gr.Tab("ASR"):
-        asr_tab = get_asr_tab()
+with gr.Blocks(
+    theme=gr.themes.Soft(
+        primary_hue="blue",
+        secondary_hue="blue",
+        neutral_hue="slate",
+        radius_size="md",
+        text_size="md",
+        font=["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+    ),
+    fill_height=True,
+    css="""
+        .gradio-container {
+            max-width: 1200px !important;
+            margin: 0 auto !important;
+        }
+        .chat-message {
+            padding: 1.5rem !important;
+            border-radius: 0.5rem !important;
+            margin-bottom: 1rem !important;
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: flex-start !important;
+            gap: 1rem !important;
+        }
+        .chat-message.user {
+            background-color: #f0f4ff !important;
+        }
+        .chat-message.assistant {
+            background-color: #f8fafc !important;
+        }
+        .chat-message .avatar {
+            width: 40px !important;
+            height: 40px !important;
+            border-radius: 50% !important;
+        }
+        .chat-message .message {
+            flex: 1 !important;
+            padding: 0.5rem !important;
+        }
+        .gradio-button {
+            transition: all 0.2s ease-in-out !important;
+        }
+        .gradio-button:hover {
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+        }
+    """
+) as demo:
+    gr.Markdown("# 🎙️ Voila - Voice AI Assistant")
+    with gr.Tabs() as tabs:
+        with gr.Tab("Chat", id="chat_tab"):
+            chat_tab = get_chat_tab()
+        with gr.Tab("Text to Speech", id="tts_tab"):
+            tts_tab = get_tts_tab()
+        with gr.Tab("Speech to Text", id="asr_tab"):
+            asr_tab = get_asr_tab()
     demo.unload(delete_directory)
 
 if __name__ == "__main__":
