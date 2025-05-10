@@ -31,6 +31,17 @@ def disable_torch_init():
     setattr(torch.nn.Linear, "reset_parameters", lambda self: None)
     setattr(torch.nn.LayerNorm, "reset_parameters", lambda self: None)
 
+def check_flash_attn():
+    """
+    Check if flash-attn is available and can be used.
+    Returns True if flash-attn is available and can be used, False otherwise.
+    """
+    try:
+        import flash_attn
+        return True
+    except ImportError:
+        return False
+
 def load_model(model_name, audio_tokenizer_path):
     disable_torch_init()
 
@@ -44,10 +55,17 @@ def load_model(model_name, audio_tokenizer_path):
         model_type = "token"
         cls = VoilaModel
 
+    # Check if flash-attn is available
+    use_flash_attn = check_flash_attn()
+    if use_flash_attn:
+        print("Flash Attention 2 is available and will be used for faster inference.")
+    else:
+        print("Flash Attention 2 is not available. Using standard attention mechanism.")
+
     model = cls.from_pretrained(
         model_name,
         torch_dtype=torch.bfloat16,
-        use_flash_attention_2=True,
+        use_flash_attention_2=use_flash_attn,
         use_cache=True,
     )
     model = model.cuda()
